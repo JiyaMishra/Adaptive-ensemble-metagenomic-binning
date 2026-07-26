@@ -1,0 +1,2 @@
+*.fasta filter=lfs diff=lfs merge=lfs -text
+framework/data/assemblies/ERR1018195.fasta filter=lfs diff=lfs merge=lfs -text
