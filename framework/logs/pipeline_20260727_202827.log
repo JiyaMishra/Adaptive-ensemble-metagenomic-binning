@@ -1,0 +1,24 @@
+[20:28:27] INFO : 
+[20:28:27] INFO : ========== BUILDING FEATURE MATRIX ==========
+[20:28:27] INFO : Reading FASTA file:
+[20:28:27] INFO : C:\Users\apara\OneDrive\Desktop\das\cad proj\CloudArchitechture\framework\data\assemblies\ERR1018195.fasta
+[20:29:55] INFO : 
+[20:29:55] INFO : ========== FASTA SUMMARY ==========
+[20:29:55] INFO : Total contigs     : 42,351
+[20:29:55] INFO : Valid contigs     : 24,039
+[20:29:55] INFO : Skipped contigs   : 18,312
+[20:29:55] INFO : ===================================
+[20:29:55] INFO : 
+[20:29:55] INFO : Feature matrix saved successfully!
+[20:29:55] INFO : Location : C:\Users\apara\OneDrive\Desktop\das\cad proj\CloudArchitechture\framework\data\featurematrix\featurematrix.csv
+[20:29:55] INFO : Rows      : 24,039
+[20:29:55] INFO : Columns   : 17
+[20:29:55] INFO : ============================================
+[20:29:55] INFO : 
+[20:29:55] INFO : ========== DATASET SUMMARY ==========
+[20:29:55] INFO : Shape : (24039, 17)
+[20:29:55] INFO : 
+[20:29:55] INFO : Missing values
+[20:29:55] INFO : 
+[20:29:55] INFO : Preview
+[20:29:55] INFO : ======================================
