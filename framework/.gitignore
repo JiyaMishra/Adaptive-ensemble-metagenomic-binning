@@ -1,0 +1,12 @@
+# Data
+data/
+
+# Results
+results/
+
+# Logs
+logs/
+
+# Python cache
+__pycache__/
+*.pyc

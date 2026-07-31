@@ -24,6 +24,8 @@ FEATURE_DIR = DATA_DIR / "featurematrix"
 
 PROCESSED_DIR = DATA_DIR / "processed"
 
+DEPTH_FILE = PROCESSED_DIR / "depth.txt"
+
 # ============================================================
 # INPUT FILE
 # ============================================================
@@ -43,7 +45,7 @@ NORMALIZED_MATRIX = PROCESSED_DIR / "normalizedfeatures.csv"
 # ============================================================
 
 # Ignore tiny contigs
-MIN_CONTIG_LENGTH = 1000
+MIN_CONTIG_LENGTH = 1500
 
 # k-mer size
 KMER_SIZE = 4
@@ -88,3 +90,42 @@ ENABLE_KMER = True
 # ============================================================
 
 RANDOM_SEED = 42
+
+# ============================================================
+# RESULTS
+# ============================================================
+
+RESULTS_DIR = PROJECT_ROOT / "results"
+
+METABAT_DIR = RESULTS_DIR / "metabat2"
+MAXBIN_DIR = RESULTS_DIR / "maxbin2"
+CONCOCT_DIR = RESULTS_DIR / "concoct"
+
+# ============================================================
+# LOGS
+# ============================================================
+
+LOG_DIR = PROJECT_ROOT / "logs"
+
+# ============================================================
+# BINNING TOOLS
+# ============================================================
+
+METABAT_EXECUTABLE = "metabat2"
+MAXBIN_EXECUTABLE = "MaxBin"
+CONCOCT_EXECUTABLE = "concoct"
+# ============================================================
+# MAXBIN
+# ============================================================
+
+MAXBIN_THREADS = 4
+# ============================================================
+# VAMB
+# ============================================================
+
+VAMB_THREADS = 4
+METABAT_OUTPUT_DIR = RESULTS_DIR / "metabat2"
+
+MAXBIN_OUTPUT_DIR = RESULTS_DIR / "maxbin2"
+
+VAMB_OUTPUT_DIR = RESULTS_DIR / "vamb"

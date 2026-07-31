@@ -47,10 +47,10 @@ def normalize_features():
     # -----------------------------------------
 
     metadata = [
-        "contig_id",
-        "length",
-        "coverage"
-    ]
+    "Contig_ID",
+    "Sequence_Length",
+    "Coverage"
+]
 
     feature_columns = [
         c for c in df.columns
