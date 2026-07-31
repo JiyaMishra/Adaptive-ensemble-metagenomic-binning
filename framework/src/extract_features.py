@@ -1,205 +1,182 @@
 """
-=============================================================
-Feature Extraction Engine
-Adaptive Explainable Ensemble Framework
--------------------------------------------------------------
-Reads streamed contigs and extracts biological features.
-=============================================================
+extract_features.py
+-------------------
+Extracts biological features from contigs.
 """
 
-from logger import info, warning, progress
-
-from config import (
-    PROGRESS_INTERVAL,
-    MIN_CONTIG_LENGTH
-)
+from itertools import product
 
 from featureutils import (
-    parse_header,
-    base_counts,
+    validate_sequence,
+    base_frequencies,
     gc_content,
     gc_skew,
     at_skew,
-    n_percentage,
     shannon_entropy,
     longest_homopolymer,
-    kmer_statistics
+    tetranucleotide_frequencies,
+    canonical_kmer
 )
 
 
-class FeatureExtractor:
+# =====================================================
+# Generate Canonical TNFs
+# =====================================================
 
-    def __init__(self):
+def generate_canonical_tnfs():
+    """
+    Generates the complete list of canonical
+    tetranucleotide frequencies.
+    """
 
-        self.processed = 0
-        self.skipped = 0
+    bases = ["A", "T", "G", "C"]
 
-    # ---------------------------------------------------------
+    canonical = set()
 
-    def extract(self, contig):
+    for kmer in map("".join, product(bases, repeat=4)):
+        canonical.add(canonical_kmer(kmer))
 
-        """
-        Extract all features from one contig.
-        """
+    return sorted(canonical)
 
-        sequence = str(contig.seq)
 
-        # Skip empty sequences
+CANONICAL_TNFS = generate_canonical_tnfs()
 
-        if len(sequence) == 0:
 
-            self.skipped += 1
-            return None
+# =====================================================
+# Feature Extraction
+# =====================================================
 
-        # Skip very short contigs
+def extract_features(contig):
+    """
+    Extract all biological features from one contig.
 
-        if len(sequence) < MIN_CONTIG_LENGTH:
+    Parameters
+    ----------
+    contig : dict
+        Dictionary returned by FASTAReader.
 
-            self.skipped += 1
-            return None
+    Returns
+    -------
+    dict | None
+        Feature dictionary.
+        Returns None if contig fails validation.
+    """
 
-        # Parse header
+    sequence = contig["sequence"]
 
-        contig_id, header_length, coverage = parse_header(contig.id)
+    # ---------------------------------------------
+    # Validate sequence
+    # ---------------------------------------------
 
-        actual_length = len(sequence)
+    if not validate_sequence(sequence):
+        return None
 
-        # Warn if header and sequence disagree
+    features = {}
 
-        if header_length != 0:
+    # ---------------------------------------------
+    # Metadata
+    # ---------------------------------------------
 
-            if header_length != actual_length:
+    features["contig_id"] = contig["id"]
+    features["length"] = contig["length"]
+    features["coverage"] = contig["coverage"]
 
-                warning(
+    # ---------------------------------------------
+    # Base Composition
+    # ---------------------------------------------
 
-                    f"{contig_id}: "
+    features.update(base_frequencies(sequence))
 
-                    f"Header length ({header_length}) "
+    # ---------------------------------------------
+    # GC Features
+    # ---------------------------------------------
 
-                    f"!= Actual length ({actual_length})"
+    features["gc_content"] = gc_content(sequence)
+    features["gc_skew"] = gc_skew(sequence)
+    features["at_skew"] = at_skew(sequence)
 
-                )
+    # ---------------------------------------------
+    # Complexity
+    # ---------------------------------------------
 
-        # Base counts
+    features["entropy"] = shannon_entropy(sequence)
+    features["longest_homopolymer"] = longest_homopolymer(sequence)
 
-        counts = base_counts(sequence)
+    # ---------------------------------------------
+    # Canonical TNFs
+    # ---------------------------------------------
 
-        # Main feature dictionary
+    observed_tnfs = tetranucleotide_frequencies(sequence)
 
-        features = {
+    for tnf in CANONICAL_TNFS:
+        features[f"TNF_{tnf}"] = observed_tnfs.get(f"TNF_{tnf}", 0.0)
 
-            "Contig_ID":
+    return features
 
-                contig_id,
 
-            "Sequence_Length":
+# =====================================================
+# Batch Extraction
+# =====================================================
 
-                actual_length,
+def extract_all_features(contigs):
+    """
+    Extract features from every contig.
 
-            "Header_Length":
+    Parameters
+    ----------
+    contigs : list
 
-                header_length,
+    Returns
+    -------
+    list
+        List of feature dictionaries.
+    """
 
-            "Coverage":
+    feature_matrix = []
 
-                coverage,
+    skipped = 0
 
-            "GC_Content":
+    for contig in contigs:
 
-                gc_content(sequence),
+        features = extract_features(contig)
 
-            "GC_Skew":
+        if features is None:
+            skipped += 1
+            continue
 
-                gc_skew(sequence),
+        feature_matrix.append(features)
 
-            "AT_Skew":
+    print(f"Processed contigs : {len(feature_matrix)}")
+    print(f"Skipped contigs   : {skipped}")
 
-                at_skew(sequence),
+    return feature_matrix
 
-            "Entropy":
 
-                shannon_entropy(sequence),
+# =====================================================
+# Standalone Testing
+# =====================================================
 
-            "Longest_Homopolymer":
+if __name__ == "__main__":
 
-                longest_homopolymer(sequence),
+    from pathlib import Path
+    from readfasta import FASTAReader
 
-            "N_Percentage":
+    project_root = Path(__file__).resolve().parents[1]
 
-                n_percentage(sequence),
+    fasta_path = (
+        project_root
+        / "data"
+        / "assemblies"
+        / "ERR1018195.fasta"
+    )
 
-            "A_Count":
+    reader = FASTAReader(fasta_path)
 
-                counts["A"],
+    contigs = reader.read_contigs()
 
-            "T_Count":
+    features = extract_all_features(contigs)
 
-                counts["T"],
+    print("\nFirst Feature Vector\n")
 
-            "G_Count":
-
-                counts["G"],
-
-            "C_Count":
-
-                counts["C"],
-
-            "N_Count":
-
-                counts["N"]
-
-        }
-
-        # Add k-mer statistics
-
-        features.update(
-
-            kmer_statistics(sequence)
-
-        )
-
-        self.processed += 1
-
-        return features
-
-    # ---------------------------------------------------------
-
-    def extract_all(self, reader):
-
-        """
-        Extracts features from every contig.
-        """
-
-        feature_matrix = []
-
-        for contig in reader.stream_contigs():
-
-            row = self.extract(contig)
-
-            if row is None:
-
-                continue
-
-            feature_matrix.append(row)
-
-            if self.processed % PROGRESS_INTERVAL == 0:
-
-                progress(
-
-                    self.processed,
-
-                    max(reader.valid_contigs, 1)
-
-                )
-
-        info("")
-
-        info("========== FEATURE EXTRACTION ==========")
-
-        info(f"Processed : {self.processed:,}")
-
-        info(f"Skipped   : {self.skipped:,}")
-
-        info("========================================")
-
-        return feature_matrix
+    for key, value in list(features[0].items())[:15]:
+        print(f"{key:25}: {value}")

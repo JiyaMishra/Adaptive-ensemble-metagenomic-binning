@@ -1,196 +1,121 @@
 """
-=============================================================
-Feature Utility Functions
-Adaptive Explainable Ensemble Framework
--------------------------------------------------------------
-Computes biological and statistical features from contigs.
-=============================================================
+featureutils.py
+----------------
+Utility functions for extracting biological features
+from DNA contigs.
 """
 
 import math
-import re
 from collections import Counter
-from itertools import product
-
-from config import (
-    KMER_SIZE,
-    ROUND_DECIMALS,
-    EXPORT_FULL_KMER
-)
-
-# ============================================================
-# Header Parser
-# ============================================================
-
-HEADER_PATTERN = re.compile(
-    r"(NODE_\d+)_length_(\d+)_cov_([\d\.]+)"
-)
 
 
-def parse_header(header):
+# --------------------------------------------------
+# Basic Composition
+# --------------------------------------------------
+def validate_sequence(sequence):
+    if len(sequence) == 0:
+        return False
+
+    if sequence.count("N") / len(sequence) > 0.20:
+        return False
+
+    return True
+def base_frequencies(sequence):
     """
-    Example:
-    NODE_1_length_154871_cov_13.594079
-
-    Returns:
-        Contig_ID
-        Length
-        Coverage
+    Returns percentage of A, T, G, C and N.
     """
 
-    match = HEADER_PATTERN.match(header)
-
-    if match:
-
-        return (
-            match.group(1),
-            int(match.group(2)),
-            float(match.group(3))
-        )
-
-    return header, 0, 0.0
-
-
-# ============================================================
-# Base Counts
-# ============================================================
-
-def base_counts(sequence):
-
-    sequence = sequence.upper()
+    length = len(sequence)
 
     counts = Counter(sequence)
 
     return {
-
-        "A": counts["A"],
-
-        "T": counts["T"],
-
-        "G": counts["G"],
-
-        "C": counts["C"],
-
-        "N": counts["N"]
-
+        "A_percent": counts.get("A", 0) / length * 100,
+        "T_percent": counts.get("T", 0) / length * 100,
+        "G_percent": counts.get("G", 0) / length * 100,
+        "C_percent": counts.get("C", 0) / length * 100,
+        "N_percent": counts.get("N", 0) / length * 100,
     }
 
 
-# ============================================================
-# GC %
-# ============================================================
+# --------------------------------------------------
+# GC Content
+# --------------------------------------------------
 
 def gc_content(sequence):
 
-    counts = base_counts(sequence)
+    counts = Counter(sequence)
 
-    total = len(sequence)
+    gc = counts.get("G", 0) + counts.get("C", 0)
 
-    if total == 0:
-        return 0
-
-    gc = counts["G"] + counts["C"]
-
-    return round(gc / total * 100, ROUND_DECIMALS)
+    return (gc / len(sequence)) * 100
 
 
-# ============================================================
+# --------------------------------------------------
 # GC Skew
-# ============================================================
+# --------------------------------------------------
 
 def gc_skew(sequence):
 
-    counts = base_counts(sequence)
+    counts = Counter(sequence)
 
-    g = counts["G"]
+    g = counts.get("G", 0)
+    c = counts.get("C", 0)
 
-    c = counts["C"]
-
-    if (g + c) == 0:
+    if g + c == 0:
         return 0
 
-    return round(
-        (g - c) / (g + c),
-        ROUND_DECIMALS
-    )
+    return (g - c) / (g + c)
 
 
-# ============================================================
+# --------------------------------------------------
 # AT Skew
-# ============================================================
+# --------------------------------------------------
 
 def at_skew(sequence):
 
-    counts = base_counts(sequence)
+    counts = Counter(sequence)
 
-    a = counts["A"]
+    a = counts.get("A", 0)
+    t = counts.get("T", 0)
 
-    t = counts["T"]
-
-    if (a + t) == 0:
+    if a + t == 0:
         return 0
 
-    return round(
-        (a - t) / (a + t),
-        ROUND_DECIMALS
-    )
+    return (a - t) / (a + t)
 
 
-# ============================================================
-# N Percentage
-# ============================================================
-
-def n_percentage(sequence):
-
-    counts = base_counts(sequence)
-
-    if len(sequence) == 0:
-        return 0
-
-    return round(
-        counts["N"] / len(sequence) * 100,
-        ROUND_DECIMALS
-    )
-
-
-# ============================================================
+# --------------------------------------------------
 # Shannon Entropy
-# ============================================================
+# --------------------------------------------------
 
 def shannon_entropy(sequence):
 
-    sequence = sequence.upper()
-
     counts = Counter(sequence)
-
-    total = len(sequence)
 
     entropy = 0
 
-    for nucleotide in ["A", "T", "G", "C"]:
+    for count in counts.values():
 
-        p = counts[nucleotide] / total
+        p = count / len(sequence)
 
-        if p > 0:
+        entropy -= p * math.log2(p)
 
-            entropy -= p * math.log2(p)
-
-    return round(entropy, ROUND_DECIMALS)
+    return entropy
 
 
-# ============================================================
+# --------------------------------------------------
 # Longest Homopolymer
-# ============================================================
+# --------------------------------------------------
 
 def longest_homopolymer(sequence):
 
     longest = 1
-
     current = 1
 
     for i in range(1, len(sequence)):
 
-        if sequence[i] == sequence[i-1]:
+        if sequence[i] == sequence[i - 1]:
 
             current += 1
 
@@ -203,88 +128,61 @@ def longest_homopolymer(sequence):
     return longest
 
 
-# ============================================================
-# Generate All k-mers
-# ============================================================
+# --------------------------------------------------
+# Reverse Complement
+# --------------------------------------------------
 
-def generate_kmers(k=KMER_SIZE):
+def reverse_complement(sequence):
 
-    alphabet = ["A", "T", "G", "C"]
+    table = str.maketrans(
+        "ATGC",
+        "TACG"
+    )
 
-    return [
-
-        "".join(x)
-
-        for x in product(alphabet, repeat=k)
-
-    ]
+    return sequence.translate(table)[::-1]
 
 
-# ============================================================
-# k-mer Frequencies
-# ============================================================
+# --------------------------------------------------
+# Canonical K-mer
+# --------------------------------------------------
 
-def kmer_frequencies(sequence, k=KMER_SIZE):
+def canonical_kmer(kmer):
 
-    sequence = sequence.upper()
+    rev = reverse_complement(kmer)
 
-    kmers = generate_kmers(k)
-
-    freq = dict.fromkeys(kmers, 0)
-
-    total = len(sequence) - k + 1
-
-    if total <= 0:
-
-        return freq
-
-    for i in range(total):
-
-        kmer = sequence[i:i+k]
-
-        if kmer in freq:
-
-            freq[kmer] += 1
-
-    for key in freq:
-
-        freq[key] /= total
-
-    return freq
+    return min(kmer, rev)
 
 
-# ============================================================
-# Summary Statistics of k-mers
-# ============================================================
+# --------------------------------------------------
+# Canonical Tetranucleotide Frequencies
+# --------------------------------------------------
 
-def kmer_statistics(sequence):
+def tetranucleotide_frequencies(sequence, k=4):
 
-    freq = kmer_frequencies(sequence)
+    counts = Counter()
 
-    values = list(freq.values())
+    total = 0
 
-    mean = sum(values) / len(values)
+    for i in range(len(sequence) - k + 1):
 
-    variance = sum(
-        (x - mean) ** 2 for x in values
-    ) / len(values)
+        kmer = sequence[i:i + k]
 
-    std = math.sqrt(variance)
+        if "N" in kmer:
+            continue
 
-    summary = {
+        canonical = canonical_kmer(kmer)
 
-        "Kmer_Mean":
+        counts[canonical] += 1
 
-            round(mean, ROUND_DECIMALS),
+        total += 1
 
-        "Kmer_STD":
+    frequencies = {}
 
-            round(std, ROUND_DECIMALS)
+    if total == 0:
+        return frequencies
 
-    }
+    for kmer, count in counts.items():
 
-    if EXPORT_FULL_KMER:
+        frequencies[f"TNF_{kmer}"] = count / total
 
-        summary.update(freq)
-
-    return summary
+    return frequencies

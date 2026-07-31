@@ -1,116 +1,138 @@
 """
-=============================================================
-FASTA Reader
-Adaptive Explainable Ensemble Framework
--------------------------------------------------------------
-Reads assembled metagenomic FASTA files efficiently.
+readfasta.py
+-------------
+Reads a FASTA assembly file and extracts:
 
-Features
---------
-✓ Streaming FASTA reader (generator)
-✓ Header validation
-✓ Minimum contig length filtering
-✓ Progress logging
-✓ Summary statistics
-=============================================================
+- Contig ID
+- Sequence
+- Length
+- Coverage (from FASTA header)
+
+Example header:
+>NODE_4_length_111806_cov_32.509248
 """
 
+import re
 from pathlib import Path
-from Bio import SeqIO
-
-from config import (
-    FASTA_FILE,
-    MIN_CONTIG_LENGTH,
-)
-
-from logger import info, warning
 
 
 class FASTAReader:
-    """
-    Reads contigs from an assembled FASTA file.
-    """
 
-    def __init__(self, fasta_path=FASTA_FILE):
-
+    def __init__(self, fasta_path):
         self.fasta_path = Path(fasta_path)
 
-        self.total_contigs = 0
-        self.valid_contigs = 0
-        self.skipped_contigs = 0
-
-    # --------------------------------------------------------
-
-    def validate_file(self):
-
         if not self.fasta_path.exists():
-
             raise FileNotFoundError(
-                f"\nFASTA file not found:\n{self.fasta_path}"
+                f"FASTA file not found:\n{self.fasta_path}"
             )
 
-        info(f"Reading FASTA file:")
-        info(str(self.fasta_path))
-
-    # --------------------------------------------------------
-
-    def stream_contigs(self):
+    def _extract_header_info(self, header):
         """
-        Generator that yields one contig at a time.
+        Extract contig information from FASTA header.
+
+        Example:
+        NODE_4_length_111806_cov_32.509248
         """
 
-        self.validate_file()
+        pattern = r"^(.*?)_length_(\d+)_cov_([\d\.]+)"
 
-        for record in SeqIO.parse(str(self.fasta_path), "fasta"):
+        match = re.match(pattern, header)
 
-            self.total_contigs += 1
+        if match:
 
-            sequence = str(record.seq)
+            contig_id = match.group(1)
 
-            if len(sequence) < MIN_CONTIG_LENGTH:
+            length = int(match.group(2))
 
-                self.skipped_contigs += 1
-                continue
+            coverage = float(match.group(3))
 
-            self.valid_contigs += 1
+        else:
+            # fallback for unknown header formats
 
-            yield record
+            contig_id = header.split()[0]
 
-    # --------------------------------------------------------
+            length = None
 
-    def summary(self):
+            coverage = None
 
-        info("")
+        return contig_id, length, coverage
 
-        info("========== FASTA SUMMARY ==========")
+    def read_contigs(self):
+        """
+        Reads the FASTA file.
 
-        info(f"Total contigs     : {self.total_contigs:,}")
+        Returns:
+        list of dictionaries.
+        """
 
-        info(f"Valid contigs     : {self.valid_contigs:,}")
+        contigs = []
 
-        info(f"Skipped contigs   : {self.skipped_contigs:,}")
+        header = None
+        sequence_lines = []
 
-        info("===================================")
+        def add_contig(current_header, current_sequence):
+            if current_header is None:
+                return
 
+            record_id = current_header.split()[0]
+            contig_id, length, coverage = self._extract_header_info(record_id)
+            sequence = "".join(current_sequence).upper()
 
-# ============================================================
-# Standalone testing
-# ============================================================
+            if length is None:
+                length = len(sequence)
+
+            contigs.append(
+                {
+                    "id": contig_id,
+                    "length": length,
+                    "coverage": coverage,
+                    "sequence": sequence,
+                }
+            )
+
+        with self.fasta_path.open(encoding="utf-8") as fasta_file:
+            for line in fasta_file:
+                line = line.strip()
+
+                if not line:
+                    continue
+
+                if line.startswith(">"):
+                    add_contig(header, sequence_lines)
+                    header = line[1:].strip()
+                    sequence_lines = []
+                else:
+                    sequence_lines.append(line)
+
+        add_contig(header, sequence_lines)
+
+        return contigs
+
 
 if __name__ == "__main__":
 
-    reader = FASTAReader()
+    project_root = Path(__file__).resolve().parents[1]
 
-    first = True
+    fasta = (
+        project_root
+        / "data"
+        / "assemblies"
+        / "ERR1018195.fasta"
+    )
 
-    for contig in reader.stream_contigs():
+    reader = FASTAReader(fasta)
 
-        if first:
+    contigs = reader.read_contigs()
 
-            info(f"First contig ID : {contig.id}")
+    print(f"\nTotal contigs : {len(contigs)}\n")
 
-            info(f"Length          : {len(contig.seq):,}")
+    if contigs:
 
-            first = False
+        first = contigs[0]
 
-    reader.summary()
+        print("First Contig")
+        print("----------------------")
+        print("ID        :", first["id"])
+        print("Length    :", first["length"])
+        print("Coverage  :", first["coverage"])
+        print("Seq Start :", first["sequence"][:60], "...")
