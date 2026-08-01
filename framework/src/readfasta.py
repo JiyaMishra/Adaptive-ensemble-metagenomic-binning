@@ -1,18 +1,12 @@
 """
-readfasta.py
--------------
 Reads a FASTA assembly file and extracts:
 
 - Contig ID
 - Sequence
 - Length
 - Coverage (from FASTA header)
-
-Example header:
->NODE_4_length_111806_cov_32.509248
 """
 
-import re
 from pathlib import Path
 
 
@@ -26,18 +20,27 @@ class FASTAReader:
                 f"FASTA file not found:\n{self.fasta_path}"
             )
 
-def _extract_header_info(self, header):
+    def _extract_header_info(self, header):
+        """
+        Extract contig information from FASTA header.
 
-    contig_id = header.split()[0]
+        For metagem_1500 headers such as:
+            >k119_378
 
-    return contig_id, None, None
+        Coverage is obtained separately from depth.txt,
+        so only the contig ID is needed here.
+        """
+
+        contig_id = header.split()[0]
+        return contig_id, None, None
 
     def read_contigs(self):
         """
-        Reads the FASTA file.
+        Reads all contigs from the FASTA file.
 
-        Returns:
-        list of dictionaries.
+        Returns
+        -------
+        list[dict]
         """
 
         contigs = []
@@ -49,8 +52,10 @@ def _extract_header_info(self, header):
             if current_header is None:
                 return
 
-            record_id = current_header.split()[0]
-            contig_id, length, coverage = self._extract_header_info(record_id)
+            contig_id, length, coverage = self._extract_header_info(
+                current_header
+            )
+
             sequence = "".join(current_sequence).upper()
 
             if length is None:
@@ -65,17 +70,23 @@ def _extract_header_info(self, header):
                 }
             )
 
-        with self.fasta_path.open(encoding="utf-8") as fasta_file:
-            for line in fasta_file:
+        with self.fasta_path.open("r", encoding="utf-8") as fasta:
+
+            for line in fasta:
+
                 line = line.strip()
 
                 if not line:
                     continue
 
                 if line.startswith(">"):
+
                     add_contig(header, sequence_lines)
-                    header = line[1:].strip()
+
+                    header = line[1:]
+
                     sequence_lines = []
+
                 else:
                     sequence_lines.append(line)
 
@@ -86,13 +97,14 @@ def _extract_header_info(self, header):
 
 if __name__ == "__main__":
 
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
 
     fasta = (
         project_root
         / "data"
         / "assemblies"
-        / "ERR1018195.fasta"
+        / "metagem_1500"
+        / "final.contigs.fa"
     )
 
     reader = FASTAReader(fasta)

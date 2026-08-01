@@ -1,49 +1,72 @@
 from pathlib import Path
-from Bio import SeqIO
+import csv
 
 
-def parse_metabat(output_dir):
-    """
-    Parse MetaBAT2 bin FASTA files.
+def parse_metabat(bin_dir, output_file):
 
-    Returns
-    -------
-    dict
+    bin_dir = Path(bin_dir)
 
-    {
-        "bin.1": ["NODE_1","NODE_2",...],
-        "bin.2": [...]
-    }
+    assignments = []
 
-    """
 
-    output_dir = Path(output_dir)
-
-    bins = {}
-
-    fasta_files = sorted(output_dir.glob("*.fa"))
-
-    for fasta in fasta_files:
+    for fasta in sorted(bin_dir.glob("*.fa")):
 
         bin_name = fasta.stem
 
-        contigs = []
+        with open(fasta) as f:
 
-        for record in SeqIO.parse(fasta, "fasta"):
-            contigs.append(record.id)
+            for line in f:
 
-        bins[bin_name] = contigs
+                if line.startswith(">"):
 
-    return bins
+                    contig = line[1:].strip().split()[0]
+
+                    assignments.append(
+                        [
+                            contig,
+                            f"metabat_{bin_name}"
+                        ]
+                    )
+
+
+    with open(output_file, "w", newline="") as f:
+
+        writer = csv.writer(f)
+
+        writer.writerow(
+            [
+                "Contig",
+                "Bin"
+            ]
+        )
+
+        writer.writerows(assignments)
+
+
+    print(
+        f"Saved MetaBAT assignments: {output_file}"
+    )
 
 
 if __name__ == "__main__":
 
-    import config
 
-    bins = parse_metabat(config.METABAT_OUTPUT_DIR)
+    PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-    print(f"Total bins: {len(bins)}")
 
-    for name, contigs in bins.items():
-        print(name, len(contigs))
+    bin_dir = (
+        PROJECT_ROOT /
+        "framework/results/metabat2"
+    )
+
+
+    output = (
+        PROJECT_ROOT /
+        "framework/results/metabat2/metabat_assignments.csv"
+    )
+
+
+    parse_metabat(
+        bin_dir,
+        output
+    )

@@ -1,54 +1,79 @@
-
-"""
-Parse MaxBin2 output bins.
-
-Returns:
-    {
-        contig_name: bin_name
-    }
-"""
-
 from pathlib import Path
-from Bio import SeqIO
+import csv
 
 
-def parse_maxbin(results_dir):
-    """
-    Parse all MaxBin2 FASTA bin files.
-    """
+def parse_maxbin(bin_dir, output_file):
 
-    results_dir = Path(results_dir)
+    bin_dir = Path(bin_dir)
 
-    contig_bins = {}
+    assignments = []
 
-    fasta_files = sorted(results_dir.glob("*.fasta"))
 
-    if not fasta_files:
-        fasta_files = sorted(results_dir.glob("*.fa"))
-
-    if not fasta_files:
-        print(f"No MaxBin2 bin files found in {results_dir}")
-        return {}
-
-    for fasta in fasta_files:
+    for fasta in sorted(bin_dir.glob("*.fasta")):
 
         bin_name = fasta.stem
 
-        for record in SeqIO.parse(fasta, "fasta"):
 
-            if record.id in contig_bins:
-                print(f"Warning: {record.id} appears in multiple MaxBin2 bins.")
+        with open(fasta) as f:
 
-            contig_bins[record.id] = bin_name
+            for line in f:
 
-    return contig_bins
+                if line.startswith(">"):
+
+                    contig = (
+                        line[1:]
+                        .strip()
+                        .split()[0]
+                    )
+
+
+                    assignments.append(
+                        [
+                            contig,
+                            f"maxbin_{bin_name}"
+                        ]
+                    )
+
+
+    with open(output_file,"w",newline="") as f:
+
+        writer = csv.writer(f)
+
+        writer.writerow(
+            [
+                "Contig",
+                "Bin"
+            ]
+        )
+
+        writer.writerows(assignments)
+
+
+    print(
+        f"Saved MaxBin assignments: {output_file}"
+    )
+
 
 
 if __name__ == "__main__":
 
-    bins = parse_maxbin("results/maxbin2")
 
-    print(f"\nParsed {len(bins)} contigs.\n")
+    PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-    for contig, bin_name in list(bins.items())[:10]:
-        print(contig, "->", bin_name)
+
+    bin_dir = (
+        PROJECT_ROOT /
+        "framework/results/maxbin2"
+    )
+
+
+    output = (
+        PROJECT_ROOT /
+        "framework/results/maxbin2/maxbin_assignments.csv"
+    )
+
+
+    parse_maxbin(
+        bin_dir,
+        output
+    )

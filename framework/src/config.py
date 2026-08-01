@@ -1,11 +1,6 @@
 """
-=============================================================
-Configuration File
-Adaptive Explainable Ensemble Framework
--------------------------------------------------------------
-Stores all project-wide parameters in one place.
-Modify values here instead of changing multiple scripts.
-=============================================================
+config.py
+Central configuration for the metagenomic binning framework.
 """
 
 from pathlib import Path
@@ -13,75 +8,87 @@ from pathlib import Path
 # ============================================================
 # PROJECT PATHS
 # ============================================================
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-DATA_DIR = PROJECT_ROOT / "data"
+DATA_DIR = PROJECT_ROOT.parent / "data"
 
-ASSEMBLY_DIR = DATA_DIR / "assemblies"
+RESULTS_DIR = PROJECT_ROOT / "results"
 
-FEATURE_DIR = DATA_DIR / "featurematrix"
+ASSEMBLY_DIR = DATA_DIR / "assemblies" / "metagem_1500"
+PROCESSED_DIR = DATA_DIR / "processed" / "metagem_1500"
 
-PROCESSED_DIR = DATA_DIR / "processed"
-
-# ============================================================
-# INPUT FILE
-# ============================================================
-
-FASTA_FILE = ASSEMBLY_DIR / "ERR1018195.fasta"
-
-# ============================================================
-# OUTPUT FILES
-# ============================================================
-
-FEATURE_MATRIX = FEATURE_DIR / "featurematrix.csv"
-
+FASTA_FILE = ASSEMBLY_DIR / "final.contigs.fa"
+DEPTH_FILE = PROCESSED_DIR / "depth.txt"
+FEATURE_MATRIX = PROCESSED_DIR / "featurematrix.csv"
 NORMALIZED_MATRIX = PROCESSED_DIR / "normalizedfeatures.csv"
 
+METABAT2_OUTPUT = RESULTS_DIR / "metabat2"
+MAXBIN2_OUTPUT = RESULTS_DIR / "maxbin2"
+SEMIBIN2_OUTPUT = RESULTS_DIR / "semibin2"
+CONCOCT_OUTPUT = RESULTS_DIR / "concoct"
+VAMB_OUTPUT = RESULTS_DIR / "vamb"
+GMM_OUTPUT = RESULTS_DIR / "gmm"
 # ============================================================
-# FEATURE EXTRACTION PARAMETERS
+# OUTPUT ASSEMDIRECTORIES
 # ============================================================
 
-# Ignore tiny contigs
-MIN_CONTIG_LENGTH = 1000
+METABAT2_OUTPUT = RESULTS_DIR / "metabat2"
 
-# k-mer size
+MAXBIN2_OUTPUT = RESULTS_DIR / "maxbin2"
+
+SEMIBIN2_OUTPUT = RESULTS_DIR / "semibin2"
+
+CONCOCT_OUTPUT = RESULTS_DIR / "concoct"
+
+VAMB_OUTPUT = RESULTS_DIR / "vamb"
+
+GMM_OUTPUT = RESULTS_DIR / "gmm"
+
+
+# ============================================================
+# FEATURE EXTRACTION
+# ============================================================
+
+MIN_CONTIG_LENGTH = 1500
+
 KMER_SIZE = 4
 
-# Export every tetranucleotide?
-# False = only summary statistics
-# True = 256 extra columns
 EXPORT_FULL_KMER = False
+
 
 # ============================================================
 # PROCESSING
 # ============================================================
 
-# Print progress every N contigs
 PROGRESS_INTERVAL = 5000
 
-# Number of decimal places
 ROUND_DECIMALS = 4
 
+
 # ============================================================
-# OPTIONAL FEATURES
+# FEATURE FLAGS
 # ============================================================
 
 ENABLE_GC_CONTENT = True
-
 ENABLE_GC_SKEW = True
-
 ENABLE_AT_SKEW = True
-
 ENABLE_BASE_COUNTS = True
-
 ENABLE_ENTROPY = True
-
 ENABLE_HOMOPOLYMER = True
-
 ENABLE_N_PERCENTAGE = True
-
 ENABLE_KMER = True
+
+
+# ============================================================
+# BINNING PARAMETERS
+# ============================================================
+
+THREADS = 2
+
+METABAT_MIN_CONTIG = 1500
+
+MAXBIN_THREADS = 2
+
 
 # ============================================================
 # RANDOM SEED
