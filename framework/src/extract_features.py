@@ -79,7 +79,7 @@ def extract_features(contig):
 
     features["contig_id"] = contig["id"]
     features["length"] = contig["length"]
-    features["coverage"] = contig["coverage"]
+    features["coverage"] = contig.get("coverage", None)
 
     # ---------------------------------------------
     # Base Composition

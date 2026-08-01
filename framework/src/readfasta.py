@@ -26,36 +26,11 @@ class FASTAReader:
                 f"FASTA file not found:\n{self.fasta_path}"
             )
 
-    def _extract_header_info(self, header):
-        """
-        Extract contig information from FASTA header.
+def _extract_header_info(self, header):
 
-        Example:
-        NODE_4_length_111806_cov_32.509248
-        """
+    contig_id = header.split()[0]
 
-        pattern = r"^(.*?)_length_(\d+)_cov_([\d\.]+)"
-
-        match = re.match(pattern, header)
-
-        if match:
-
-            contig_id = match.group(1)
-
-            length = int(match.group(2))
-
-            coverage = float(match.group(3))
-
-        else:
-            # fallback for unknown header formats
-
-            contig_id = header.split()[0]
-
-            length = None
-
-            coverage = None
-
-        return contig_id, length, coverage
+    return contig_id, None, None
 
     def read_contigs(self):
         """

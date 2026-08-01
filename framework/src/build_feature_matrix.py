@@ -29,17 +29,19 @@ def build_feature_matrix():
     project_root = Path(__file__).resolve().parents[1]
 
     fasta_path = (
-        project_root
-        / "data"
-        / "assemblies"
-        / "ERR1018195.fasta"
-    )
+    project_root
+    / "data"
+    / "assemblies"
+    / "metagem_1500"
+    / "final.contigs.fa"
+)
 
     output_folder = (
-        project_root
-        / "data"
-        / "featurematrix"
-    )
+    project_root
+    / "data"
+    / "processed"
+    / "metagem_1500"
+)
 
     output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -70,15 +72,55 @@ def build_feature_matrix():
     # Extract Features
     # ------------------------------------------
 
+     # ------------------------------------------
+    # Extract Features
+    # ------------------------------------------
+
     print("\nExtracting biological features...")
 
     features = extract_all_features(contigs)
+
+
+    # ------------------------------------------
+    # Merge Coverage
+    # ------------------------------------------
+
+    features_df = pd.DataFrame(features)
+
+    from load_depth import load_depth
+
+    depth_path = (
+        project_root
+        / "data"
+        / "processed"
+        / "metagem_1500"
+        / "depth.txt"
+    )
+
+    depth_df = load_depth(depth_path)
+
+
+    features_df = features_df.merge(
+        depth_df,
+        on="contig_id",
+        how="left"
+    )
+
+
+    features_df["coverage"] = features_df["coverage_y"]
+
+
+    features_df = features_df.drop(
+        columns=["coverage_x", "coverage_y"]
+    )
+
 
     # ------------------------------------------
     # Create DataFrame
     # ------------------------------------------
 
-    df = pd.DataFrame(features)
+    df = features_df
+
 
     # ------------------------------------------
     # Sort columns
@@ -99,51 +141,3 @@ def build_feature_matrix():
         "C_percent",
         "N_percent",
     ]
-
-    tnf_columns = sorted(
-        [c for c in df.columns if c.startswith("TNF_")]
-    )
-
-    df = df[
-        fixed_columns +
-        tnf_columns
-    ]
-
-    # ------------------------------------------
-    # Save
-    # ------------------------------------------
-
-    df.to_csv(output_csv, index=False)
-
-    print("\nFeature matrix saved successfully!")
-
-    print(output_csv)
-
-    # ------------------------------------------
-    # Dataset Summary
-    # ------------------------------------------
-
-    print("\n========== Dataset Summary ==========")
-
-    print(f"Total contigs : {len(df)}")
-
-    print(f"Total features: {len(df.columns)}")
-
-    print(f"Average length : {df['length'].mean():.2f}")
-
-    print(f"Average GC     : {df['gc_content'].mean():.2f}")
-
-    print(f"Average cov    : {df['coverage'].mean():.2f}")
-
-    print("=====================================")
-
-    return df
-
-
-# =====================================================
-# Run
-# =====================================================
-
-if __name__ == "__main__":
-
-    build_feature_matrix()

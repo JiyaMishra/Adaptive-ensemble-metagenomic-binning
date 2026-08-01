@@ -20,17 +20,19 @@ def normalize_features():
     project_root = Path(__file__).resolve().parents[1]
 
     input_csv = (
-        project_root
-        / "data"
-        / "featurematrix"
-        / "featurematrix.csv"
-    )
+    project_root
+    / "data"
+    / "processed"
+    / "metagem_1500"
+    / "featurematrix.csv"
+)
 
     output_folder = (
-        project_root
-        / "data"
-        / "processed"
-    )
+    project_root
+    / "data"
+    / "processed"
+    / "metagem_1500"
+)
 
     output_folder.mkdir(parents=True, exist_ok=True)
 
@@ -46,10 +48,10 @@ def normalize_features():
     # Columns NOT to normalize
     # -----------------------------------------
 
-    metadata = [
-    "Contig_ID",
-    "Sequence_Length",
-    "Coverage"
+   metadata = [
+    "contig_id",
+    "length",
+    "coverage"
 ]
 
     feature_columns = [

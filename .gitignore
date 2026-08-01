@@ -1,0 +1,19 @@
+# Raw sequencing data
+data/raw/
+
+# Alignment files
+*.sam
+*.bam
+*.bai
+
+# BWA index
+*.amb
+*.ann
+*.bwt
+*.pac
+*.sa
+
+# MEGAHIT intermediate files
+data/assemblies/**/intermediate_contigs/
+data/assemblies/**/checkpoints.txt
+data/assemblies/**/done
