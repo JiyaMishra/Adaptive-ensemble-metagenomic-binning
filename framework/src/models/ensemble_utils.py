@@ -16,9 +16,9 @@ def load_feature_matrix():
 
     path = (
         PROJECT_ROOT
+        / "framework"
         / "data"
-        / "processed"
-        / "metagem_1500"
+        / "featurematrix"
         / "featurematrix.csv"
     )
 
