@@ -1,164 +1,101 @@
-"""
-Adaptive weighted ensemble for metagenomic binning.
-
-Combines MetaBAT2, MaxBin2 and VAMB
-using dynamic feature-based weights.
-"""
-
 from pathlib import Path
-
-import numpy as np
 import pandas as pd
-
-from ensemble_utils import build_ensemble_dataframe
-
+from collections import Counter
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
-OUTPUT_DIR = (
-    PROJECT_ROOT
-    / "framework"
-    / "results"
-    / "ensemble"
-)
-
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+INPUT = PROJECT_ROOT / "framework/results/ensemble_dataframe.csv"
+OUTPUT = PROJECT_ROOT / "framework/results/adaptive_ensemble_assignments.csv"
 
 
-# =====================================================
-# Dynamic Weights
-# =====================================================
-
-def compute_weights(row):
-    """
-    Compute adaptive weights using
-    biological features.
-    """
-
-    length = row["length"]
-    coverage = row["coverage"]
-    gc = row["gc_content"]
-
-    # default
-    metabat = 0.34
-    maxbin = 0.33
-    vamb = 0.33
-
-    # Long contigs
-    if length >= 5000:
-        metabat += 0.15
-
-    # High coverage
-    if coverage >= 20:
-        maxbin += 0.10
-
-    # Medium GC
-    if 40 <= gc <= 60:
-        vamb += 0.10
-
-    total = metabat + maxbin + vamb
-
-    return {
-        "metabat": metabat / total,
-        "maxbin": maxbin / total,
-        "vamb": vamb / total,
-    }
-
-
-# =====================================================
-# Weighted Voting
-# =====================================================
-
-def weighted_vote(row):
-
-    weights = compute_weights(row)
-
-    scores = {}
-
-    mapping = [
-        ("metabat_bin", weights["metabat"]),
-        ("maxbin_bin", weights["maxbin"]),
-        ("vamb_bin", weights["vamb"]),
+def choose_consensus(row):
+    bins = [
+        row.get("metabat_bin"),
+        row.get("maxbin_bin"),
+        row.get("vamb_bin"),
     ]
 
-    for column, weight in mapping:
+    bins = [b for b in bins if pd.notna(b)]
 
-        value = row[column]
+    if not bins:
+        return None
 
-        if pd.isna(value):
-            continue
+    counts = Counter(bins)
 
-        scores[value] = scores.get(value, 0.0) + weight
+    # Majority vote
+    best_bin, best_count = counts.most_common(1)[0]
 
-    if len(scores) == 0:
-        return pd.Series(
-            {
-                "ensemble_bin": np.nan,
-                "confidence": 0.0,
-            }
-        )
+    if best_count >= 2:
+        return best_bin
 
-    winner = max(scores, key=scores.get)
+    # No agreement: retain the available MetaBAT assignment
+    # as the fallback because it generally provides the
+    # largest baseline assignment set.
+    if pd.notna(row.get("metabat_bin")):
+        return row["metabat_bin"]
 
-    confidence = scores[winner] / sum(scores.values())
+    if pd.notna(row.get("maxbin_bin")):
+        return row["maxbin_bin"]
 
-    return pd.Series(
-        {
-            "ensemble_bin": winner,
-            "confidence": round(confidence, 3),
-        }
-    )
+    return row["vamb_bin"]
 
 
-# =====================================================
-# Main
-# =====================================================
+def main():
+    df = pd.read_csv(INPUT)
 
-def run_ensemble():
+    required = {
+        "contig_id",
+        "metabat_bin",
+        "maxbin_bin",
+        "vamb_bin",
+    }
 
-    df = build_ensemble_dataframe()
+    missing = required - set(df.columns)
 
-    predictions = df.apply(
-        weighted_vote,
+    if missing:
+        raise ValueError(f"Missing required columns: {sorted(missing)}")
+
+    df["adaptive_bin"] = df.apply(choose_consensus, axis=1)
+
+    df["agreement_count"] = df[
+        ["metabat_bin", "maxbin_bin", "vamb_bin"]
+    ].apply(
+        lambda row: len(
+            set(x for x in row if pd.notna(x))
+        ),
         axis=1,
     )
 
-    final = pd.concat(
-        [
-            df,
-            predictions,
-        ],
-        axis=1,
+    # More useful agreement score:
+    def agreement_score(row):
+        bins = [x for x in row if pd.notna(x)]
+
+        if len(bins) <= 1:
+            return 1.0
+
+        counts = Counter(bins)
+        return max(counts.values()) / len(bins)
+
+    df["agreement_score"] = df[
+        ["metabat_bin", "maxbin_bin", "vamb_bin"]
+    ].apply(agreement_score, axis=1)
+
+    df.to_csv(OUTPUT, index=False)
+
+    print("Saved:", OUTPUT)
+    print("Rows:", len(df))
+    print("Unique contigs:", df["contig_id"].nunique())
+    print(
+        "Assigned adaptive bins:",
+        df["adaptive_bin"].notna().sum()
     )
 
-    output = (
-        OUTPUT_DIR
-        / "ensemble_predictions.csv"
-    )
+    print("\nAgreement distribution:")
+    print(df["agreement_score"].value_counts().sort_index())
 
-    final.to_csv(
-        output,
-        index=False,
-    )
-
-    print()
-    print("=" * 60)
-    print("Adaptive Ensemble Complete")
-    print("=" * 60)
-    print("Contigs :", len(final))
-    print("Output  :", output)
-    print()
-    print(final[
-        [
-            "contig_id",
-            "metabat_bin",
-            "maxbin_bin",
-            "vamb_bin",
-            "ensemble_bin",
-            "confidence",
-        ]
-    ].head())
+    print("\nAdaptive bin count:")
+    print(df["adaptive_bin"].nunique())
 
 
 if __name__ == "__main__":
-    run_ensemble()
+    main()
