@@ -1,48 +1,44 @@
 """
-config.py
 Central configuration for the metagenomic binning framework.
 """
 
 from pathlib import Path
 
+
 # ============================================================
 # PROJECT PATHS
 # ============================================================
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-DATA_DIR = PROJECT_ROOT.parent / "data"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+DATA_DIR = PROJECT_ROOT / "data"
 RESULTS_DIR = PROJECT_ROOT / "results"
 
-ASSEMBLY_DIR = DATA_DIR / "assemblies" / "metagem_1500"
-PROCESSED_DIR = DATA_DIR / "processed" / "metagem_1500"
+ASSEMBLY_DIR = DATA_DIR / "assemblies"
+FEATURE_DIR = DATA_DIR / "featurematrix"
+PROCESSED_DIR = DATA_DIR / "processed"
 
-FASTA_FILE = ASSEMBLY_DIR / "final.contigs.fa"
+FASTA_FILE = ASSEMBLY_DIR / "ERR1018195.fasta"
+FEATURE_MATRIX = FEATURE_DIR / "featurematrix.csv"
 DEPTH_FILE = PROCESSED_DIR / "depth.txt"
-FEATURE_MATRIX = PROCESSED_DIR / "featurematrix.csv"
+
 NORMALIZED_MATRIX = PROCESSED_DIR / "normalizedfeatures.csv"
 
-METABAT2_OUTPUT = RESULTS_DIR / "metabat2"
-MAXBIN2_OUTPUT = RESULTS_DIR / "maxbin2"
-SEMIBIN2_OUTPUT = RESULTS_DIR / "semibin2"
-CONCOCT_OUTPUT = RESULTS_DIR / "concoct"
-VAMB_OUTPUT = RESULTS_DIR / "vamb"
-GMM_OUTPUT = RESULTS_DIR / "gmm"
+
 # ============================================================
-# OUTPUT ASSEMDIRECTORIES
+# BINNER OUTPUTS
 # ============================================================
 
 METABAT2_OUTPUT = RESULTS_DIR / "metabat2"
-
 MAXBIN2_OUTPUT = RESULTS_DIR / "maxbin2"
-
-SEMIBIN2_OUTPUT = RESULTS_DIR / "semibin2"
-
-CONCOCT_OUTPUT = RESULTS_DIR / "concoct"
-
 VAMB_OUTPUT = RESULTS_DIR / "vamb"
 
-GMM_OUTPUT = RESULTS_DIR / "gmm"
+
+# ============================================================
+# ENSEMBLE OUTPUT
+# ============================================================
+
+ENSEMBLE_OUTPUT = RESULTS_DIR / "ensemble"
 
 
 # ============================================================
@@ -50,9 +46,7 @@ GMM_OUTPUT = RESULTS_DIR / "gmm"
 # ============================================================
 
 MIN_CONTIG_LENGTH = 1500
-
 KMER_SIZE = 4
-
 EXPORT_FULL_KMER = False
 
 
@@ -61,7 +55,6 @@ EXPORT_FULL_KMER = False
 # ============================================================
 
 PROGRESS_INTERVAL = 5000
-
 ROUND_DECIMALS = 4
 
 
@@ -84,9 +77,7 @@ ENABLE_KMER = True
 # ============================================================
 
 THREADS = 2
-
 METABAT_MIN_CONTIG = 1500
-
 MAXBIN_THREADS = 2
 
 

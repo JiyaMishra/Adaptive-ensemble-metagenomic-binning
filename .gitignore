@@ -16,4 +16,11 @@ data/raw/
 # MEGAHIT intermediate files
 data/assemblies/**/intermediate_contigs/
 data/assemblies/**/checkpoints.txt
-data/assemblies/**/done
+data/assemblies/**/donedata/
+
+# Generated data
+data/
+data/
+
+# Generated data
+data/
