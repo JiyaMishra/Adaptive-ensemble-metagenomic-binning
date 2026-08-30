@@ -48,11 +48,11 @@ def normalize_features():
     # Columns NOT to normalize
     # -----------------------------------------
 
-   metadata = [
-    "contig_id",
-    "length",
-    "coverage"
-]
+    metadata = [
+        "contig_id",
+        "length",
+        "coverage"
+    ]
 
     feature_columns = [
         c for c in df.columns
