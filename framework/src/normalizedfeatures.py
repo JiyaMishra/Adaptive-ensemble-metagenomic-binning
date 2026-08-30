@@ -17,7 +17,7 @@ from sklearn.preprocessing import StandardScaler
 
 def normalize_features():
 
-    project_root = Path(__file__).resolve().parents[1]
+    project_root = Path(__file__).resolve().parents[2]
 
     input_csv = (
     project_root
