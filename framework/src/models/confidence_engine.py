@@ -17,10 +17,10 @@ TOOLS = [
 ]
 
 BIO_FEATURES = [
-    "Coverage",
-    "GC_Content",
-    "Entropy",
-    "Sequence_Length",
+    "coverage",
+    "gc_content",
+    "entropy",
+    "length",
 ]
 
 
@@ -117,22 +117,7 @@ def calculate_tool_agreement(row, memberships):
 
 
 def biological_consistency(row, df, memberships):
-    """
-    Measure how typical the contig's biological features are
-    for the bin(s) it was assigned to.
-
-    Features:
-        Coverage
-        GC content
-        Entropy
-        Sequence length
-
-    For each assigned tool/bin, compare the contig to the
-    median feature profile of that bin.
-
-    Robust MAD scaling prevents a few extreme contigs from
-    dominating the score.
-    """
+    """Calculate biological similarity to the assigned bin profile."""
 
     scores = []
 
@@ -143,14 +128,9 @@ def biological_consistency(row, df, memberships):
         if pd.isna(bin_value):
             continue
 
-        members = memberships[tool].get(
-            str(bin_value),
-            set()
-        )
+        members = memberships[tool].get(str(bin_value), set())
 
         if len(members) < 3:
-            # Too little evidence to estimate a reliable
-            # bin profile.
             continue
 
         subset = df[
@@ -165,12 +145,11 @@ def biological_consistency(row, df, memberships):
                 continue
 
             values = pd.to_numeric(
-                subset[feature],
-                errors="coerce"
+                subset[feature], errors="coerce"
             ).dropna()
 
             value = pd.to_numeric(
-                pd.Series([row[feature]]),
+                pd.Series([row.get(feature)]),
                 errors="coerce"
             ).iloc[0]
 
@@ -179,68 +158,56 @@ def biological_consistency(row, df, memberships):
 
             median = values.median()
 
-            mad = np.median(
-                np.abs(values - median)
-            )
+            mad = np.median(np.abs(values - median))
 
-            scale = (
-                1.4826 * mad
-                + 1e-9
-            )
+            scale = 1.4826 * mad
 
-            deviation = abs(
-                value - median
-            ) / scale
+            # If all values are identical, the contig is
+            # perfectly consistent with the bin profile.
+            if scale < 1e-9:
+                score = 1.0 if abs(value - median) < 1e-9 else 0.0
+            else:
+                deviation = abs(value - median) / scale
+                score = np.exp(-0.5 * deviation)
 
-            # Smoothly convert deviation to [0, 1].
-            score = np.exp(
-                -0.5 * deviation
-            )
-
-            feature_scores.append(score)
+            feature_scores.append(float(score))
 
         if feature_scores:
-            scores.append(
-                float(np.mean(feature_scores))
-            )
+            scores.append(float(np.mean(feature_scores)))
 
     if not scores:
-        return 0.5
+        return 0.0
 
     return float(np.mean(scores))
 
 
+
 def calculate_confidence(row, agreement, biological):
-    """
-    Transparent initial confidence mechanism.
-
-    50%  -> tool agreement
-    35%  -> biological consistency
-    15%  -> assignment coverage
-
-    These weights are an explicit initial design choice,
-    not a claimed experimentally optimal weighting.
-    They must later be validated through ablation/evaluation.
-    """
 
     assigned_tools = sum(
         pd.notna(row.get(tool))
         for tool in TOOLS
     )
 
-    assignment_coverage = (
-        assigned_tools / len(TOOLS)
-    )
+    if assigned_tools == 0:
+        return 0.0
+
+    # One-tool assignments have limited evidence.
+    if assigned_tools == 1:
+        agreement_evidence = 0.35
+    else:
+        agreement_evidence = agreement
+
+    assignment_coverage = assigned_tools / len(TOOLS)
 
     confidence = (
-        0.50 * agreement
+        0.50 * agreement_evidence
         + 0.35 * biological
         + 0.15 * assignment_coverage
     )
 
-    return float(
-        np.clip(confidence, 0.0, 1.0)
-    )
+    return float(np.clip(confidence, 0.0, 1.0))
+
 
 
 def confidence_category(score):
