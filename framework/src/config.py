@@ -12,15 +12,15 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 DATA_DIR = PROJECT_ROOT / "data"
-RESULTS_DIR = PROJECT_ROOT / "results"
+RESULTS_DIR = PROJECT_ROOT / "framework" / "results"
 
 ASSEMBLY_DIR = DATA_DIR / "assemblies"
 FEATURE_DIR = DATA_DIR / "featurematrix"
 PROCESSED_DIR = DATA_DIR / "processed"
 
-FASTA_FILE = ASSEMBLY_DIR / "ERR1018195.fasta"
-FEATURE_MATRIX = FEATURE_DIR / "featurematrix.csv"
-DEPTH_FILE = PROCESSED_DIR / "depth.txt"
+FASTA_FILE = ASSEMBLY_DIR / "metagem_1500" / "final.contigs.fa"
+FEATURE_MATRIX = PROCESSED_DIR / "metagem_1500" / "featurematrix.csv"
+DEPTH_FILE = PROCESSED_DIR / "metagem_1500" / "depth.txt"
 
 NORMALIZED_MATRIX = PROCESSED_DIR / "normalizedfeatures.csv"
 

@@ -16,13 +16,18 @@ def load_feature_matrix():
 
     path = (
         PROJECT_ROOT
-        / "framework"
         / "data"
-        / "featurematrix"
+        / "processed"
+        / "metagem_1500"
         / "featurematrix.csv"
     )
 
-    return pd.read_csv(path)
+    df = pd.read_csv(path)
+
+    if "Contig_ID" in df.columns:
+        df = df.rename(columns={"Contig_ID": "contig_id"})
+
+    return df
 
 
 def load_metabat():
