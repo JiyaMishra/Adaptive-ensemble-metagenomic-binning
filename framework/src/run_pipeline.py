@@ -18,6 +18,10 @@ EVALUATION_DIR = SRC_DIR / "evaluation"
 if str(EVALUATION_DIR) not in sys.path:
     sys.path.insert(0, str(EVALUATION_DIR))
 
+EXPLAINABILITY_DIR = SRC_DIR / "explainability"
+if str(EXPLAINABILITY_DIR) not in sys.path:
+    sys.path.insert(0, str(EXPLAINABILITY_DIR))
+
 import config
 from build_feature_matrix import build_feature_matrix
 from parse_metabat import parse_metabat
@@ -32,6 +36,8 @@ import confidence_guided_refinement
 import bin_refinement
 import evaluate_ensemble
 import quality_evaluator
+import shap_analysis
+import visualize_shap
 
 
 def run_pipeline():
@@ -92,6 +98,16 @@ def run_pipeline():
     print("STEP 11: Quality Evaluation")
     print("=" * 60)
     quality_evaluator.main()
+
+    print("\n" + "=" * 60)
+    print("STEP 12: SHAP Explainability Analysis")
+    print("=" * 60)
+    shap_analysis.main()
+
+    print("\n" + "=" * 60)
+    print("STEP 13: SHAP Visualizations")
+    print("=" * 60)
+    visualize_shap.main()
 
     print("\n" + "=" * 60)
     print("PIPELINE COMPLETED SUCCESSFULLY!")
