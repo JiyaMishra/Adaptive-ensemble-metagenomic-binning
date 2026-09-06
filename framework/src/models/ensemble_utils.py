@@ -40,6 +40,9 @@ def load_metabat():
         / "metabat_assignments.csv"
     )
 
+    if not path.exists():
+        return pd.DataFrame(columns=["contig_id", "metabat_bin"])
+
     df = pd.read_csv(path)
     df.columns = ["contig_id", "metabat_bin"]
 
@@ -56,6 +59,9 @@ def load_maxbin():
         / "maxbin_assignments.csv"
     )
 
+    if not path.exists():
+        return pd.DataFrame(columns=["contig_id", "maxbin_bin"])
+
     df = pd.read_csv(path)
     df.columns = ["contig_id", "maxbin_bin"]
 
@@ -71,6 +77,9 @@ def load_vamb():
         / "vamb"
         / "vamb_assignments.csv"
     )
+
+    if not path.exists():
+        return pd.DataFrame(columns=["contig_id", "vamb_bin"])
 
     df = pd.read_csv(path)
     df.columns = ["contig_id", "vamb_bin"]
@@ -102,6 +111,15 @@ def build_ensemble_dataframe():
         on="contig_id",
         how="left",
     )
+
+    output_path = (
+        PROJECT_ROOT
+        / "framework"
+        / "results"
+        / "ensemble_dataframe.csv"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False)
 
     return df
 

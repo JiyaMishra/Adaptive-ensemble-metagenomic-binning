@@ -35,7 +35,8 @@ def parse_maxbin(bin_dir, output_file):
                     )
 
 
-    with open(output_file,"w",newline="") as f:
+    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+    with open(output_file, "w", newline="") as f:
 
         writer = csv.writer(f)
 

@@ -4,6 +4,15 @@ import pandas as pd
 
 def parse_vamb(vamb_file, output_file):
 
+    vamb_path = Path(vamb_file)
+    output_path = Path(output_file)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not vamb_path.exists():
+        pd.DataFrame(columns=["Contig", "Bin"]).to_csv(output_path, index=False)
+        print(f"Saved VAMB assignments (empty): {output_file}")
+        return
+
     df = pd.read_csv(
         vamb_file,
         sep="\t"

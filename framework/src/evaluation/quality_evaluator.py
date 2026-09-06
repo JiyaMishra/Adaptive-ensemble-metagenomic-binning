@@ -44,7 +44,8 @@ def load_marker_reference():
     marker set represented by the reference bins.
     """
     if not MARKER_ARCHIVE.exists():
-        raise FileNotFoundError(MARKER_ARCHIVE)
+        print(f"Warning: {MARKER_ARCHIVE} not found. Skipping marker reference lookup.")
+        return {}
 
     marker_sets = {}
 

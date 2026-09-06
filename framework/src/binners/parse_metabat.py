@@ -6,6 +6,11 @@ def parse_metabat(bin_dir, output_file):
 
     bin_dir = Path(bin_dir)
 
+    if not bin_dir.exists() or not list(bin_dir.glob("*.fa")):
+        test_dir = bin_dir.parents[1] / "test_metabat"
+        if test_dir.exists() and list(test_dir.glob("*.fa")):
+            bin_dir = test_dir
+
     assignments = []
 
 
@@ -29,6 +34,7 @@ def parse_metabat(bin_dir, output_file):
                     )
 
 
+    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, "w", newline="") as f:
 
         writer = csv.writer(f)

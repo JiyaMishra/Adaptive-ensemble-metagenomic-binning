@@ -9,11 +9,11 @@ OUTPUT = PROJECT_ROOT / "framework/results/refined_assignments.csv"
 
 
 FEATURES = [
-    "Coverage",
-    "GC_Content",
-    "GC_Skew",
-    "AT_Skew",
-    "Entropy",
+    "coverage",
+    "gc_content",
+    "gc_skew",
+    "at_skew",
+    "entropy",
 ]
 
 

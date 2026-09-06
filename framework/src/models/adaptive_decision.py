@@ -121,95 +121,100 @@ def choose_assignment(row):
     })
 
 
-print("Loading ensemble:")
-print(INPUT)
+def main():
+    print("Loading ensemble:")
+    print(INPUT)
 
-ensemble = pd.read_csv(INPUT)
-confidence = pd.read_csv(CONFIDENCE)
+    ensemble = pd.read_csv(INPUT)
+    confidence = pd.read_csv(CONFIDENCE)
 
-print("Ensemble rows:", len(ensemble))
-print("Confidence rows:", len(confidence))
+    print("Ensemble rows:", len(ensemble))
+    print("Confidence rows:", len(confidence))
 
-required = {
-    "contig_id",
-    "metabat_bin",
-    "maxbin_bin",
-    "vamb_bin",
-}
+    required = {
+        "contig_id",
+        "metabat_bin",
+        "maxbin_bin",
+        "vamb_bin",
+    }
 
-if not required.issubset(ensemble.columns):
-    raise ValueError(
-        f"Missing ensemble columns: "
-        f"{required - set(ensemble.columns)}"
+    if not required.issubset(ensemble.columns):
+        raise ValueError(
+            f"Missing ensemble columns: "
+            f"{required - set(ensemble.columns)}"
+        )
+
+    confidence_cols = [
+        "contig_id",
+        "assigned_tool_count",
+        "tool_agreement_score",
+        "biological_consistency_score",
+        "confidence_score",
+        "confidence_category",
+    ]
+
+    if not set(confidence_cols).issubset(confidence.columns):
+        raise ValueError(
+            f"Missing confidence columns: "
+            f"{set(confidence_cols) - set(confidence.columns)}"
+        )
+
+    df = ensemble.merge(
+        confidence[confidence_cols],
+        on="contig_id",
+        how="inner",
+        validate="one_to_one",
     )
 
-confidence_cols = [
-    "contig_id",
-    "assigned_tool_count",
-    "tool_agreement_score",
-    "biological_consistency_score",
-    "confidence_score",
-    "confidence_category",
-]
+    if len(df) != len(ensemble):
+        raise ValueError("Merge changed ensemble row count.")
 
-if not set(confidence_cols).issubset(confidence.columns):
-    raise ValueError(
-        f"Missing confidence columns: "
-        f"{set(confidence_cols) - set(confidence.columns)}"
+    decisions = df.apply(
+        choose_assignment,
+        axis=1,
     )
 
-df = ensemble.merge(
-    confidence[confidence_cols],
-    on="contig_id",
-    how="inner",
-    validate="one_to_one",
-)
+    df = pd.concat([df, decisions], axis=1)
 
-if len(df) != len(ensemble):
-    raise ValueError("Merge changed ensemble row count.")
+    print("")
+    print("===== ADAPTIVE DECISION SUMMARY =====")
 
-decisions = df.apply(
-    choose_assignment,
-    axis=1,
-)
+    print(
+        df["selected_method"]
+        .value_counts(dropna=False)
+        .to_string()
+    )
 
-df = pd.concat([df, decisions], axis=1)
+    print("")
+    print("===== DECISION REASONS =====")
 
-print("")
-print("===== ADAPTIVE DECISION SUMMARY =====")
+    print(
+        df["decision_reason"]
+        .value_counts(dropna=False)
+        .to_string()
+    )
 
-print(
-    df["selected_method"]
-    .value_counts(dropna=False)
-    .to_string()
-)
+    print("")
+    print("===== CONFIDENCE BY DECISION =====")
 
-print("")
-print("===== DECISION REASONS =====")
+    print(
+        df.groupby("selected_method")["confidence_score"]
+        .agg(["count", "mean", "median"])
+        .round(4)
+    )
 
-print(
-    df["decision_reason"]
-    .value_counts(dropna=False)
-    .to_string()
-)
+    print("")
+    print("===== ASSIGNMENT COVERAGE =====")
 
-print("")
-print("===== CONFIDENCE BY DECISION =====")
+    print("Input contigs :", len(df))
+    print("Assigned      :", df["selected_bin"].notna().sum())
+    print("Unassigned    :", df["selected_bin"].isna().sum())
 
-print(
-    df.groupby("selected_method")["confidence_score"]
-    .agg(["count", "mean", "median"])
-    .round(4)
-)
+    df.to_csv(OUTPUT, index=False)
 
-print("")
-print("===== ASSIGNMENT COVERAGE =====")
+    print("")
+    print("Saved:", OUTPUT)
 
-print("Input contigs :", len(df))
-print("Assigned      :", df["selected_bin"].notna().sum())
-print("Unassigned    :", df["selected_bin"].isna().sum())
 
-df.to_csv(OUTPUT, index=False)
-
-print("")
-print("Saved:", OUTPUT)
+if __name__ == "__main__":
+    main()
