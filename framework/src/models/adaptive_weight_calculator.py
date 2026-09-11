@@ -46,7 +46,18 @@ def normalize_weights(metabat, maxbin, vamb):
 # Weight calculation
 # =====================================================
 
-def calculate_weights(df):
+def calculate_weights(df, feature_weights=None):
+    """Calculate per-tool weights, optionally using closed-loop feature weights.
+
+    ``feature_weights`` is a mapping keyed by the feature names used by this
+    rule-based adaptive weighting model.  It is supplied by the XAI loop for a
+    subsequent batch; omitted keys retain the existing behaviour.
+    """
+
+    feature_weights = feature_weights or {}
+    length_factor = float(feature_weights.get("length", 1.0))
+    coverage_factor = float(feature_weights.get("coverage", 1.0))
+    entropy_factor = float(feature_weights.get("entropy", 1.0))
 
     weights = []
 
@@ -73,30 +84,30 @@ def calculate_weights(df):
         # -----------------------------
 
         if length >= 10000:
-            metabat_score += 2
+            metabat_score += 2 * length_factor
 
         elif length >= 5000:
-            metabat_score += 1
+            metabat_score += length_factor
 
         # -----------------------------
         # High coverage favours MaxBin2
         # -----------------------------
 
         if coverage >= 20:
-            maxbin_score += 2
+            maxbin_score += 2 * coverage_factor
 
         elif coverage >= 10:
-            maxbin_score += 1
+            maxbin_score += coverage_factor
 
         # -----------------------------
         # High entropy favours VAMB
         # -----------------------------
 
         if entropy >= 1.95:
-            vamb_score += 2
+            vamb_score += 2 * entropy_factor
 
         elif entropy >= 1.85:
-            vamb_score += 1
+            vamb_score += entropy_factor
 
         # -----------------------------
         # Normalize

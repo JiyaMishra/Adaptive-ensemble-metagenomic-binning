@@ -86,3 +86,14 @@ MAXBIN_THREADS = 2
 # ============================================================
 
 RANDOM_SEED = 42
+
+
+# ============================================================
+# CLOSED-LOOP XAI
+# ============================================================
+# These conservative bounds make explanation-derived feedback useful without
+# allowing one batch to dominate the following adaptive-ensemble decision.
+XAI_BATCH_SIZE = 500
+XAI_FEEDBACK_LEARNING_RATE = 0.10
+XAI_MINIMUM_FEATURE_WEIGHT = 0.25
+XAI_MAXIMUM_FEATURE_WEIGHT = 2.0
