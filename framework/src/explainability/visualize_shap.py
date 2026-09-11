@@ -16,6 +16,7 @@ import shap
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 EXPLAINABILITY_DIR = PROJECT_ROOT / "framework/results/explainability"
+VISUALIZATION_DIR = PROJECT_ROOT / "framework/results/visualizations"
 SHAP_CSV = EXPLAINABILITY_DIR / "shap_values.csv"
 INPUT_ENSEMBLE = PROJECT_ROOT / "framework/results/ensemble_dataframe.csv"
 
@@ -50,6 +51,7 @@ def visualize_shap():
             shap_vals[:, f_idx, o_idx] = df_shap[col_name].values
 
     EXPLAINABILITY_DIR.mkdir(parents=True, exist_ok=True)
+    VISUALIZATION_DIR.mkdir(parents=True, exist_ok=True)
 
     # 1. SHAP Feature Importance Bar Plot
     # Mean |SHAP| value across all samples and output weights
@@ -73,7 +75,7 @@ def visualize_shap():
         )
 
     plt.tight_layout()
-    importance_png = EXPLAINABILITY_DIR / "shap_feature_importance.png"
+    importance_png = VISUALIZATION_DIR / "shap_feature_importance.png"
     plt.savefig(importance_png, dpi=300)
     plt.close()
     print(f"Saved feature importance plot: {importance_png}")
@@ -92,7 +94,7 @@ def visualize_shap():
     )
     plt.title("SHAP Summary Plot for Adaptive Weighting Logic", fontsize=12)
     plt.tight_layout()
-    summary_png = EXPLAINABILITY_DIR / "shap_summary.png"
+    summary_png = VISUALIZATION_DIR / "shap_summary.png"
     plt.savefig(summary_png, dpi=300)
     plt.close()
     print(f"Saved summary plot: {summary_png}")

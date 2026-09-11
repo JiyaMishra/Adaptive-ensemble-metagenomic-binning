@@ -1,5 +1,7 @@
 numpy
 pandas
+psutil
+scipy
 scikit-learn
 matplotlib
 shap

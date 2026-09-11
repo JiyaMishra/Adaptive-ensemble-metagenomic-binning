@@ -2,6 +2,8 @@ from pathlib import Path
 import pandas as pd
 from collections import Counter
 
+from adaptive_weight_calculator import calculate_weights
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 INPUT = PROJECT_ROOT / "framework/results/ensemble_dataframe.csv"
@@ -28,20 +30,24 @@ def choose_consensus(row):
     if best_count >= 2:
         return best_bin
 
-    # No agreement: retain the available MetaBAT assignment
-    # as the fallback because it generally provides the
-    # largest baseline assignment set.
-    if pd.notna(row.get("metabat_bin")):
-        return row["metabat_bin"]
+    # No agreement: use the current adaptive per-tool weights.  The weights can
+    # contain conservative feedback from the preceding XAI batch.
+    candidates = [
+        ("metabat_bin", "metabat_weight"),
+        ("maxbin_bin", "maxbin_weight"),
+        ("vamb_bin", "vamb_weight"),
+    ]
+    available = [
+        (row[bin_column], float(row.get(weight_column, 0.0)))
+        for bin_column, weight_column in candidates
+        if pd.notna(row.get(bin_column))
+    ]
+    return max(available, key=lambda item: item[1])[0]
 
-    if pd.notna(row.get("maxbin_bin")):
-        return row["maxbin_bin"]
 
-    return row["vamb_bin"]
-
-
-def main():
-    df = pd.read_csv(INPUT)
+def main(feature_weights=None, input_path=INPUT, output_path=OUTPUT):
+    """Run consensus using optional XAI-updated weights for this batch."""
+    df = pd.read_csv(input_path)
 
     required = {
         "contig_id",
@@ -55,6 +61,8 @@ def main():
     if missing:
         raise ValueError(f"Missing required columns: {sorted(missing)}")
 
+    weights = calculate_weights(df, feature_weights=feature_weights)
+    df = df.merge(weights, on="contig_id", how="left", validate="one_to_one")
     df["adaptive_bin"] = df.apply(choose_consensus, axis=1)
 
     df["agreement_count"] = df[
@@ -80,9 +88,11 @@ def main():
         ["metabat_bin", "maxbin_bin", "vamb_bin"]
     ].apply(agreement_score, axis=1)
 
-    df.to_csv(OUTPUT, index=False)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, index=False)
 
-    print("Saved:", OUTPUT)
+    print("Saved:", output_path)
     print("Rows:", len(df))
     print("Unique contigs:", df["contig_id"].nunique())
     print(

@@ -4,6 +4,7 @@ End-to-end execution runner for the Adaptive Ensemble Metagenomic Binning pipeli
 
 import sys
 from pathlib import Path
+import pandas as pd
 
 SRC_DIR = Path(__file__).resolve().parent
 if str(SRC_DIR) not in sys.path:
@@ -29,6 +30,7 @@ from parse_maxbin import parse_maxbin
 from parse_vamb import parse_vamb
 from ensemble_utils import build_ensemble_dataframe
 import confidence_engine
+import resource_engine
 import adaptive_decision
 import adaptive_ensemble
 import adaptive_weight_calculator
@@ -38,6 +40,27 @@ import evaluate_ensemble
 import quality_evaluator
 import shap_analysis
 import visualize_shap
+import closed_loop_xai
+
+
+def validate_binner_outputs():
+    """Fail before parsing when external binners have not produced real output."""
+    expected = {
+        "MetaBAT2": (config.METABAT2_OUTPUT, "bin*.fa"),
+        "MaxBin2": (config.MAXBIN2_OUTPUT, "*.fasta"),
+        "VAMB": (config.VAMB_OUTPUT / "vae_clusters_unsplit.tsv", None),
+    }
+    missing = []
+    for tool, (path, pattern) in expected.items():
+        exists = path.exists() if pattern is None else path.exists() and any(path.glob(pattern))
+        if not exists:
+            missing.append(f"{tool}: {path}" + (f" ({pattern})" if pattern else ""))
+    if missing:
+        raise FileNotFoundError(
+            "Real binner outputs are required before the ensemble/XAI pipeline can run.\n"
+            + "\n".join(missing)
+            + "\nRun framework/src/binners/run_metabat2.py, run_maxbin2.py, and run_vamb.py first."
+        )
 
 
 def run_pipeline():
@@ -49,6 +72,7 @@ def run_pipeline():
     print("\n" + "=" * 60)
     print("STEP 2: Parsing Binner Outputs")
     print("=" * 60)
+    validate_binner_outputs()
     parse_metabat(config.METABAT2_OUTPUT, config.METABAT2_OUTPUT / "metabat_assignments.csv")
     parse_maxbin(config.MAXBIN2_OUTPUT, config.MAXBIN2_OUTPUT / "maxbin_assignments.csv")
     parse_vamb(config.VAMB_OUTPUT / "vae_clusters_unsplit.tsv", config.VAMB_OUTPUT / "vamb_assignments.csv")
@@ -62,7 +86,19 @@ def run_pipeline():
     print("\n" + "=" * 60)
     print("STEP 4: Confidence Engine")
     print("=" * 60)
-    confidence_engine.main()
+    calibration = confidence_engine.main()
+    print(
+        "[SELF-CALIBRATION] Calibrated Thresholds: "
+        f"Low < {calibration['low_threshold']:.4f}, "
+        f"High > {calibration['high_threshold']:.4f}"
+    )
+
+    print("\n" + "=" * 60)
+    print("STEP 4B: Hardware-Aware Execution Routing")
+    print("=" * 60)
+    capacity, routed_contigs = resource_engine.prepare_execution_routes()
+    has_heavy_workset = (routed_contigs["execution_route"] == "HEAVY_ENSEMBLE").any()
+    print(resource_engine.format_startup_telemetry(capacity, routed_contigs))
 
     print("\n" + "=" * 60)
     print("STEP 5: Adaptive Decisions")
@@ -102,12 +138,52 @@ def run_pipeline():
     print("\n" + "=" * 60)
     print("STEP 12: SHAP Explainability Analysis")
     print("=" * 60)
-    shap_analysis.main()
+    if has_heavy_workset:
+        # KernelSHAP is the pipeline's most memory-intensive matrix operation.
+        # Explain only routed heavy-path contigs while retaining all route metadata
+        # in the canonical and execution-routes CSVs.
+        shap_analysis.main(
+            input_path=resource_engine.HEAVY_ENSEMBLE_OUTPUT,
+            batch_size=capacity.chunk_size,
+        )
+    else:
+        print("No HEAVY_ENSEMBLE contigs; skipping SHAP computation.")
 
     print("\n" + "=" * 60)
     print("STEP 13: SHAP Visualizations")
     print("=" * 60)
-    visualize_shap.main()
+    if has_heavy_workset:
+        visualize_shap.main()
+    else:
+        print("No HEAVY_ENSEMBLE contigs; skipping SHAP visualizations.")
+
+    print("\n" + "=" * 60)
+    print("STEP 14: Humanized XAI and Closed-Loop Feedback")
+    print("=" * 60)
+    shap_path = config.RESULTS_DIR / "explainability" / "shap_values.csv"
+    decisions_path = config.RESULTS_DIR / "adaptive_decisions.csv"
+    if shap_path.exists() and decisions_path.exists():
+        feedback, history, explanations = closed_loop_xai.run_closed_loop(
+            pd.read_csv(decisions_path), pd.read_csv(shap_path), config.XAI_BATCH_SIZE
+        )
+        closed_loop_xai.write_comparison(pd.read_csv(decisions_path), explanations)
+        sample = explanations.iloc[0]
+        print("\n" + "=" * 60)
+        print("ADAPTIVE ENSEMBLE METAGENOMIC BINNING\n             XAI RESULT")
+        print("=" * 60)
+        print(f"CONTIG\n{sample['contig_id']}\n\nFINAL ASSIGNMENT\n{sample['selected_method']} → {sample['selected_bin']}")
+        print(f"\nCONFIDENCE\n{sample['confidence_score']} → {sample['confidence_category']}")
+        print(f"\nEXECUTION ROUTE\n{sample['execution_route']}")
+        print(f"\nTOP SHAP FEATURES\n{sample['top_shap_features']}")
+        print("\nXAI FEEDBACK")
+        for _, item in feedback.iterrows():
+            print(f"{item['feature']}: {item['previous_weight']:.3f} → {item['new_weight']:.3f}")
+        print("\n" + "-" * 60)
+        print("WHAT DOES THIS OUTPUT MEAN?")
+        print("-" * 60)
+        print(sample["humanized_explanation"])
+    else:
+        print("No SHAP/decision output available; closed-loop feedback was not run.")
 
     print("\n" + "=" * 60)
     print("PIPELINE COMPLETED SUCCESSFULLY!")
