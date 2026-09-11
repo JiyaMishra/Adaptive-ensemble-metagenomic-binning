@@ -73,7 +73,7 @@ def main():
         print("  3. Generate the archive baseline.marker_of_each_bin.tar.gz")
         print()
         print("Example:")
-        print('  run_MaxBin.pl -contig "data/assemblies/metagem_1500/final.contigs.fa" -abund "data/processed/metagem_1500/depth.txt" -out "framework/results/maxbin2/bin" -thread 2')
+        print('  run_MaxBin.pl -contig "data/assemblies/ERR13958310/final.contigs.fa" -abund "data/processed/ERR13958310/depth.txt" -out "framework/results/maxbin2/bin" -thread 2')
         print("Then rerun this script.")
         return
 

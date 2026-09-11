@@ -38,19 +38,19 @@ def run_vamb():
 
     fasta = (
         PROJECT_ROOT /
-        "data/assemblies/metagem_1500/final.contigs.fa"
+        "data/assemblies/ERR13958310_1500/final.contigs.fa"
     )
 
 
     depth = (
         PROJECT_ROOT /
-        "data/processed/metagem_1500/depth.txt"
+        "data/processed/ERR13958310/depth.txt"
     )
 
 
     abundance = (
         PROJECT_ROOT /
-        "data/processed/metagem_1500/vamb_abundance.tsv"
+        "data/processed/ERR13958310_1500/vamb_abundance.tsv"
     )
 
 

@@ -24,7 +24,7 @@ class FASTAReader:
         """
         Extract contig information from FASTA header.
 
-        For metagem_1500 headers such as:
+        For ERR13958310_1500 headers such as:
             >k119_378
 
         Coverage is obtained separately from depth.txt,
@@ -103,7 +103,7 @@ if __name__ == "__main__":
         project_root
         / "data"
         / "assemblies"
-        / "metagem_1500"
+        / "ERR13958310_1500"
         / "final.contigs.fa"
     )
 

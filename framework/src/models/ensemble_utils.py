@@ -18,7 +18,7 @@ def load_feature_matrix():
         PROJECT_ROOT
         / "data"
         / "processed"
-        / "metagem_1500"
+        / "ERR13958310_1500"
         / "featurematrix.csv"
     )
 

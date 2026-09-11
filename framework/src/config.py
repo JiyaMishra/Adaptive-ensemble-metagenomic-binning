@@ -18,9 +18,9 @@ ASSEMBLY_DIR = DATA_DIR / "assemblies"
 FEATURE_DIR = DATA_DIR / "featurematrix"
 PROCESSED_DIR = DATA_DIR / "processed"
 
-FASTA_FILE = ASSEMBLY_DIR / "metagem_1500" / "final.contigs.fa"
-FEATURE_MATRIX = PROCESSED_DIR / "metagem_1500" / "featurematrix.csv"
-DEPTH_FILE = PROCESSED_DIR / "metagem_1500" / "depth.txt"
+FASTA_FILE = ASSEMBLY_DIR / "ERR13958310_1500" / "final.contigs.fa"
+FEATURE_MATRIX = PROCESSED_DIR / "ERR13958310_1500" / "featurematrix.csv"
+DEPTH_FILE = PROCESSED_DIR / "ERR13958310" / "depth.txt"
 
 NORMALIZED_MATRIX = PROCESSED_DIR / "normalizedfeatures.csv"
 

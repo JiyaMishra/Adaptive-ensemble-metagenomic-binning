@@ -29,7 +29,7 @@ def build_feature_matrix():
         project_root
         / "data"
         / "assemblies"
-        / "metagem_1500"
+        / "ERR13958310_1500"
         / "final.contigs.fa"
     )
 
@@ -37,7 +37,7 @@ def build_feature_matrix():
         project_root
         / "data"
         / "processed"
-        / "metagem_1500"
+        / "ERR13958310"
         / "depth.txt"
     )
 
@@ -45,7 +45,7 @@ def build_feature_matrix():
         project_root
         / "data"
         / "processed"
-        / "metagem_1500"
+        / "ERR13958310_1500"
     )
 
     output_folder.mkdir(parents=True, exist_ok=True)

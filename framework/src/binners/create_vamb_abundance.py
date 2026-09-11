@@ -31,12 +31,12 @@ if __name__ == "__main__":
 
     depth = (
         PROJECT_ROOT /
-        "data/processed/metagem_1500/depth.txt"
+        "data/processed/ERR13958310/depth.txt"
     )
 
     output = (
         PROJECT_ROOT /
-        "data/processed/metagem_1500/vamb_abundance.tsv"
+        "data/processed/ERR13958310_1500/vamb_abundance.tsv"
     )
 
     create_vamb_abundance(depth, output)

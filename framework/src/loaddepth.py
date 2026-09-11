@@ -26,7 +26,7 @@ def load_depth(depth_file):
 if __name__ == "__main__":
 
     df = load_depth(
-        "../data/processed/metagem_1500/depth.txt"
+        "../data/processed/ERR13958310/depth.txt"
     )
 
     print(df.head())

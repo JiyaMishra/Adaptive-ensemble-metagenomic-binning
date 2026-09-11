@@ -23,7 +23,7 @@ def normalize_features():
     project_root
     / "data"
     / "processed"
-    / "metagem_1500"
+    / "ERR13958310_1500"
     / "featurematrix.csv"
 )
 
@@ -31,7 +31,7 @@ def normalize_features():
     project_root
     / "data"
     / "processed"
-    / "metagem_1500"
+    / "ERR13958310_1500"
 )
 
     output_folder.mkdir(parents=True, exist_ok=True)
