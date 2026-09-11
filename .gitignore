@@ -24,3 +24,11 @@ data/
 
 # Generated data
 data/
+# Allow important reproducible dataset outputs
+!data/
+!data/assemblies/
+!data/assemblies/ERR13958310_1500/
+!data/assemblies/ERR13958310_1500/final.contigs.fa
+!data/processed/
+!data/processed/ERR13958310/
+!data/processed/ERR13958310/depth.txt
