@@ -64,17 +64,36 @@ def predict_weights(X):
     return np.array(results)
 
 
-def run_shap_analysis():
+def _compute_shap_in_batches(explainer, features, batch_size):
+    """Bound KernelSHAP peak memory by evaluating the routed workset in batches."""
+
+    batches = []
+    for start in range(0, len(features), batch_size):
+        batches.append(explainer.shap_values(features.iloc[start : start + batch_size]))
+
+    if isinstance(batches[0], list):
+        return [
+            np.concatenate([batch[output_index] for batch in batches], axis=0)
+            for output_index in range(len(batches[0]))
+        ]
+    return np.concatenate(batches, axis=0)
+
+
+def run_shap_analysis(input_path=None, batch_size=None):
 
     print("=" * 60)
     print("Running SHAP Analysis for Adaptive Binner Weighting")
     print("=" * 60)
 
-    if not INPUT.exists():
-        raise FileNotFoundError(f"Input file not found: {INPUT}")
+    active_input = Path(input_path) if input_path is not None else INPUT
+    if not active_input.exists():
+        raise FileNotFoundError(f"Input file not found: {active_input}")
 
-    df = pd.read_csv(INPUT)
+    df = pd.read_csv(active_input)
     print(f"Loaded ensemble dataframe: {len(df)} contigs")
+    if df.empty:
+        print("No heavy-path contigs require SHAP analysis; writing no SHAP output.")
+        return pd.DataFrame(), np.empty((0, len(FEATURES), len(OUTPUT_WEIGHTS))), df
 
     for f in FEATURES:
         if f not in df.columns:
@@ -88,7 +107,8 @@ def run_shap_analysis():
 
     explainer = shap.KernelExplainer(predict_weights, bg)
     print("Computing SHAP values...")
-    shap_vals = explainer.shap_values(X)
+    effective_batch_size = max(1, int(batch_size or len(X)))
+    shap_vals = _compute_shap_in_batches(explainer, X, effective_batch_size)
 
     # Convert to standard 3D array (N_samples, N_features, N_outputs) if list returned
     if isinstance(shap_vals, list):
@@ -117,8 +137,8 @@ def run_shap_analysis():
     return res_df, shap_vals, X
 
 
-def main():
-    run_shap_analysis()
+def main(input_path=None, batch_size=None):
+    run_shap_analysis(input_path=input_path, batch_size=batch_size)
 
 
 if __name__ == "__main__":

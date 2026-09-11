@@ -80,7 +80,9 @@ def run_vamb():
     "--fasta",
     str(fasta),
     "--abundance_tsv",
-    str(abundance)
+    str(abundance),
+    "-p",
+    "1"
     
 ]
 

@@ -29,6 +29,7 @@ from parse_maxbin import parse_maxbin
 from parse_vamb import parse_vamb
 from ensemble_utils import build_ensemble_dataframe
 import confidence_engine
+import resource_engine
 import adaptive_decision
 import adaptive_ensemble
 import adaptive_weight_calculator
@@ -62,7 +63,19 @@ def run_pipeline():
     print("\n" + "=" * 60)
     print("STEP 4: Confidence Engine")
     print("=" * 60)
-    confidence_engine.main()
+    calibration = confidence_engine.main()
+    print(
+        "[SELF-CALIBRATION] Calibrated Thresholds: "
+        f"Low < {calibration['low_threshold']:.4f}, "
+        f"High > {calibration['high_threshold']:.4f}"
+    )
+
+    print("\n" + "=" * 60)
+    print("STEP 4B: Hardware-Aware Execution Routing")
+    print("=" * 60)
+    capacity, routed_contigs = resource_engine.prepare_execution_routes()
+    has_heavy_workset = (routed_contigs["execution_route"] == "HEAVY_ENSEMBLE").any()
+    print(resource_engine.format_startup_telemetry(capacity, routed_contigs))
 
     print("\n" + "=" * 60)
     print("STEP 5: Adaptive Decisions")
@@ -102,12 +115,24 @@ def run_pipeline():
     print("\n" + "=" * 60)
     print("STEP 12: SHAP Explainability Analysis")
     print("=" * 60)
-    shap_analysis.main()
+    if has_heavy_workset:
+        # KernelSHAP is the pipeline's most memory-intensive matrix operation.
+        # Explain only routed heavy-path contigs while retaining all route metadata
+        # in the canonical and execution-routes CSVs.
+        shap_analysis.main(
+            input_path=resource_engine.HEAVY_ENSEMBLE_OUTPUT,
+            batch_size=capacity.chunk_size,
+        )
+    else:
+        print("No HEAVY_ENSEMBLE contigs; skipping SHAP computation.")
 
     print("\n" + "=" * 60)
     print("STEP 13: SHAP Visualizations")
     print("=" * 60)
-    visualize_shap.main()
+    if has_heavy_workset:
+        visualize_shap.main()
+    else:
+        print("No HEAVY_ENSEMBLE contigs; skipping SHAP visualizations.")
 
     print("\n" + "=" * 60)
     print("PIPELINE COMPLETED SUCCESSFULLY!")

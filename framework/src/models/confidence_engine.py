@@ -1,13 +1,20 @@
 from pathlib import Path
 from collections import defaultdict
+import json
+import warnings
+from typing import Any, Mapping, Sequence
+
 import numpy as np
 import pandas as pd
+from scipy import stats
+from scipy.signal import find_peaks
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 INPUT = PROJECT_ROOT / "framework/results/ensemble_dataframe.csv"
 OUTPUT = PROJECT_ROOT / "framework/results/confidence_scores.csv"
+CALIBRATION_OUTPUT = PROJECT_ROOT / "framework/results/confidence_calibration.json"
 
 
 TOOLS = [
@@ -24,7 +31,7 @@ BIO_FEATURES = [
 ]
 
 
-def build_bin_memberships(df):
+def build_bin_memberships(df: pd.DataFrame) -> dict[str, defaultdict[str, set[str]]]:
     """
     Build:
         tool -> bin -> set(contigs)
@@ -54,7 +61,7 @@ def build_bin_memberships(df):
     return memberships
 
 
-def jaccard(set_a, set_b):
+def jaccard(set_a: set[str], set_b: set[str]) -> float:
     """
     Jaccard similarity between two contig sets.
     """
@@ -71,7 +78,10 @@ def jaccard(set_a, set_b):
     return intersection / union
 
 
-def calculate_tool_agreement(row, memberships):
+def calculate_tool_agreement(
+    row: pd.Series,
+    memberships: Mapping[str, Mapping[str, set[str]]],
+) -> float:
     """
     Compare the bin containing this contig from one tool
     against bins from the other tools.
@@ -116,7 +126,11 @@ def calculate_tool_agreement(row, memberships):
     return float(np.mean(evidence))
 
 
-def biological_consistency(row, df, memberships):
+def biological_consistency(
+    row: pd.Series,
+    df: pd.DataFrame,
+    memberships: Mapping[str, Mapping[str, set[str]]],
+) -> float:
     """Calculate biological similarity to the assigned bin profile."""
 
     scores = []
@@ -182,7 +196,7 @@ def biological_consistency(row, df, memberships):
 
 
 
-def calculate_confidence(row, agreement, biological):
+def calculate_confidence(row: pd.Series, agreement: float, biological: float) -> float:
 
     assigned_tools = sum(
         pd.notna(row.get(tool))
@@ -210,18 +224,122 @@ def calculate_confidence(row, agreement, biological):
 
 
 
-def confidence_category(score):
+def _kde_bimodality(scores: np.ndarray) -> tuple[bool, float | None]:
+    """Identify a KDE valley between the two most prominent score modes."""
 
-    if score >= 0.75:
-        return "HIGH"
+    if scores.size < 3 or np.unique(scores).size < 2:
+        return False, None
 
-    if score >= 0.50:
+    try:
+        density = stats.gaussian_kde(scores)
+        # Grid density scales with observed data size, not a fixed score cutoff.
+        grid_size = max(scores.size, np.unique(scores).size)
+        grid = np.linspace(scores.min(), scores.max(), grid_size)
+        values = density(grid)
+        peaks, _ = find_peaks(values)
+    except (np.linalg.LinAlgError, ValueError):
+        return False, None
+
+    if peaks.size < 2:
+        return False, None
+
+    strongest = peaks[np.argsort(values[peaks])[-2:]]
+    left_peak, right_peak = np.sort(strongest)
+    valley = left_peak + np.argmin(values[left_peak : right_peak + 1])
+    return True, float(grid[valley])
+
+
+def calculate_adaptive_thresholds(scores: Sequence[float] | np.ndarray) -> dict[str, Any]:
+    """Derive confidence boundaries solely from the observed score distribution.
+
+    Quartiles provide robust tail boundaries.  Their multipliers are derived from
+    the empirical skewness so a longer tail receives a wider boundary.  A KDE is
+    additionally evaluated to record whether the data have a natural bimodal
+    split; its valley is retained as diagnostic metadata rather than imposing an
+    arbitrary score cutoff.
+    """
+
+    raw_scores = np.asarray(scores, dtype=float).reshape(-1)
+    finite_scores = raw_scores[np.isfinite(raw_scores)]
+    if finite_scores.size == 0:
+        raise ValueError("Cannot calibrate confidence thresholds without finite scores.")
+
+    sample_size = int(finite_scores.size)
+    if sample_size < 50:
+        warnings.warn(
+            "Confidence calibration is based on fewer than 50 contigs; "
+            "thresholds may be less stable.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
+    q1, median, q3 = np.percentile(finite_scores, [25, 50, 75])
+    iqr = float(q3 - q1)
+    mad = float(np.median(np.abs(finite_scores - median)))
+    score_min = float(np.min(finite_scores))
+    score_max = float(np.max(finite_scores))
+    score_range = score_max - score_min
+    tolerance = np.finfo(float).eps * max(1.0, abs(float(median)), score_range)
+
+    is_zero_variance = bool(score_range <= tolerance)
+    if is_zero_variance:
+        skewness = 0.0
+    else:
+        skewness = float(stats.skew(finite_scores, bias=False)) if sample_size > 2 else 0.0
+        if not np.isfinite(skewness):
+            skewness = 0.0
+
+    is_degenerate = bool(iqr <= tolerance)
+    kde_is_bimodal, kde_valley = _kde_bimodality(finite_scores)
+
+    if is_degenerate:
+        # This mandated MAD fallback remains empirical; clipping preserves score bounds.
+        low_threshold = max(score_min, float(median - 1.25 * mad))
+        high_threshold = min(score_max, float(median + 1.25 * mad))
+        method = "median_mad_fallback"
+    else:
+        # Positive skew expands the low tail; negative skew expands the high tail.
+        alpha = max(skewness, 0.0)
+        beta = max(-skewness, 0.0)
+        low_threshold = max(score_min, float(q1 - alpha * iqr))
+        high_threshold = min(score_max, float(q3 + beta * iqr))
+        method = "skew_scaled_iqr"
+
+    return {
+        "low_threshold": float(low_threshold),
+        "high_threshold": float(high_threshold),
+        "q1": float(q1),
+        "q3": float(q3),
+        "median": float(median),
+        "iqr": iqr,
+        "mad": mad,
+        "skewness": skewness,
+        "minimum": score_min,
+        "maximum": score_max,
+        "sample_size": sample_size,
+        "is_bimodal": kde_is_bimodal,
+        "kde_valley": kde_valley,
+        "is_degenerate": is_degenerate,
+        "is_zero_variance": is_zero_variance,
+        "calibration_method": method,
+    }
+
+
+def confidence_category(score: float, calibration: Mapping[str, Any]) -> str:
+    """Assign a category using the dataset-specific calibrated boundaries."""
+
+    low_threshold = float(calibration["low_threshold"])
+    high_threshold = float(calibration["high_threshold"])
+    if bool(calibration["is_zero_variance"]):
         return "MEDIUM"
+    if score < low_threshold:
+        return "LOW"
+    if score > high_threshold:
+        return "HIGH"
+    return "MEDIUM"
 
-    return "LOW"
 
-
-def main():
+def main() -> dict[str, Any]:
 
     print("Loading:", INPUT)
 
@@ -242,10 +360,13 @@ def main():
         )
 
     print("Input rows:", len(df))
+    if df.empty:
+        raise ValueError("Cannot calculate confidence calibration for an empty contig dataset.")
 
     memberships = build_bin_memberships(df)
 
     results = []
+    raw_confidence_scores: list[float] = []
 
     for _, row in df.iterrows():
 
@@ -265,6 +386,7 @@ def main():
             agreement,
             biological
         )
+        raw_confidence_scores.append(confidence)
 
         assigned_tools = [
             tool
@@ -298,12 +420,15 @@ def main():
                 "confidence_score":
                     round(confidence, 4),
 
-                "confidence_category":
-                    confidence_category(confidence),
             }
         )
 
     result = pd.DataFrame(results)
+    calibration = calculate_adaptive_thresholds(raw_confidence_scores)
+    result["confidence_category"] = [
+        confidence_category(score, calibration)
+        for score in raw_confidence_scores
+    ]
 
     OUTPUT.parent.mkdir(
         parents=True,
@@ -314,6 +439,9 @@ def main():
         OUTPUT,
         index=False
     )
+
+    with CALIBRATION_OUTPUT.open("w", encoding="utf-8") as calibration_file:
+        json.dump(calibration, calibration_file, indent=2, sort_keys=True)
 
     print("")
     print("===== CONFIDENCE ENGINE COMPLETE =====")
@@ -355,6 +483,10 @@ def main():
     print("")
     print("Saved:")
     print(OUTPUT)
+    print("Calibration metadata:")
+    print(CALIBRATION_OUTPUT)
+
+    return calibration
 
 
 if __name__ == "__main__":
